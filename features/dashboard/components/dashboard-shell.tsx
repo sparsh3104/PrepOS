@@ -24,13 +24,26 @@ export function DashboardShell({ userEmail, children }: DashboardShellProps) {
 
           <nav className="mt-6 flex-1 space-y-1">
             {dashboardNavigation.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="block rounded-md px-3 py-2 text-sm text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
-              >
-                {item.label}
-              </Link>
+              item.available ? (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="block rounded-md px-3 py-2 text-sm text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
+                >
+                  {item.label}
+                </Link>
+              ) : (
+                <div
+                  key={item.href}
+                  aria-disabled="true"
+                  className="flex items-center justify-between rounded-md px-3 py-2 text-sm text-muted-foreground/60"
+                >
+                  <span>{item.label}</span>
+                  <span className="rounded-full border border-border/70 px-2 py-0.5 text-[10px] uppercase tracking-[0.14em]">
+                    Soon
+                  </span>
+                </div>
+              )
             ))}
           </nav>
         </aside>
@@ -47,13 +60,26 @@ export function DashboardShell({ userEmail, children }: DashboardShellProps) {
                 <div className="absolute left-0 top-12 z-50 w-72 rounded-lg border bg-popover p-2 shadow-card">
                   <nav className="space-y-1">
                     {dashboardNavigation.map((item) => (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        className="block rounded-md px-3 py-2 text-sm text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
-                      >
-                        {item.label}
-                      </Link>
+                      item.available ? (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          className="block rounded-md px-3 py-2 text-sm text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
+                        >
+                          {item.label}
+                        </Link>
+                      ) : (
+                        <div
+                          key={item.href}
+                          aria-disabled="true"
+                          className="flex items-center justify-between rounded-md px-3 py-2 text-sm text-muted-foreground/60"
+                        >
+                          <span>{item.label}</span>
+                          <span className="rounded-full border border-border/70 px-2 py-0.5 text-[10px] uppercase tracking-[0.14em]">
+                            Soon
+                          </span>
+                        </div>
+                      )
                     ))}
                   </nav>
                 </div>

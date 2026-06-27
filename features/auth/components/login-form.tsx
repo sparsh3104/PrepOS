@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
@@ -9,12 +8,13 @@ import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { loginWithEmailAction } from "@/features/auth/actions";
 import { type LoginFormValues, loginSchema } from "@/features/auth/schemas";
 import { OAuthButtons } from "@/features/auth/components/oauth-buttons";
+import { hasSupabaseEnv } from "@/lib/env";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { signInWithEmail } from "@/services/auth.service";
 
 export function LoginForm() {
-  const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -30,16 +30,27 @@ export function LoginForm() {
   const onSubmit = (values: LoginFormValues) => {
     setServerError(null);
 
+    if (!hasSupabaseEnv) {
+      setServerError(
+        "Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your environment.",
+      );
+      return;
+    }
+
     startTransition(async () => {
-      const result = await loginWithEmailAction(values);
+      try {
+        const supabase = createSupabaseBrowserClient();
+        const result = await signInWithEmail(supabase, values.email, values.password);
 
-      if (!result.success) {
-        setServerError(result.message);
-        return;
+        if (!result.success) {
+          setServerError(result.error ?? result.message);
+          return;
+        }
+
+        window.location.assign("/dashboard");
+      } catch {
+        setServerError("Unable to complete sign in. Please try again.");
       }
-
-      router.replace("/dashboard");
-      router.refresh();
     });
   };
 
@@ -78,7 +89,7 @@ export function LoginForm() {
 
         {serverError ? <p className="text-sm text-destructive">{serverError}</p> : null}
 
-        <Button type="submit" className="w-full" disabled={isPending}>
+        <Button type="submit" className="w-full" disabled={isPending || !hasSupabaseEnv}>
           {isPending ? "Signing in..." : "Sign in"}
         </Button>
       </form>

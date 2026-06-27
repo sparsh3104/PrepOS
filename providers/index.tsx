@@ -1,6 +1,7 @@
 "use client";
 
 import { QueryProvider } from "@/providers/query-provider";
+import { DevRuntimeGuard } from "@/providers/dev-runtime-guard";
 import { ThemeProvider } from "@/providers/theme-provider";
 
 interface AppProvidersProps {
@@ -10,7 +11,10 @@ interface AppProvidersProps {
 export function AppProviders({ children }: AppProvidersProps) {
   return (
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
-      <QueryProvider>{children}</QueryProvider>
+      <QueryProvider>
+        <DevRuntimeGuard />
+        {children}
+      </QueryProvider>
     </ThemeProvider>
   );
 }

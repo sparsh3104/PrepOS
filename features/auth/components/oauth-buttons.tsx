@@ -2,8 +2,10 @@
 
 import { useState, useTransition } from "react";
 
-import { signInWithOAuthAction } from "@/features/auth/actions";
 import { Button } from "@/components/ui/button";
+import { hasSupabaseEnv } from "@/lib/env";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { startOAuthSignIn } from "@/services/auth.service";
 
 function GoogleGlyph() {
   return (
@@ -33,16 +35,35 @@ export function OAuthButtons() {
     setError(null);
     setPendingProvider(provider);
 
+    if (!hasSupabaseEnv) {
+      setError(
+        "Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your environment.",
+      );
+      setPendingProvider(null);
+      return;
+    }
+
     startTransition(async () => {
-      const result = await signInWithOAuthAction(provider);
+      try {
+        const supabase = createSupabaseBrowserClient();
+        const baseUrl = window.location.origin;
+        const result = await startOAuthSignIn(
+          supabase,
+          provider,
+          `${baseUrl}/auth/callback?next=/dashboard`,
+        );
 
-      if (!result.success || !result.url) {
-        setError(result.message);
+        if (!result.success || !result.data?.url) {
+          setError(result.error ?? result.message);
+          setPendingProvider(null);
+          return;
+        }
+
+        window.location.assign(result.data.url);
+      } catch {
+        setError("Unable to start OAuth sign in. Please try again.");
         setPendingProvider(null);
-        return;
       }
-
-      window.location.assign(result.url);
     });
   };
 
@@ -54,7 +75,7 @@ export function OAuthButtons() {
           variant="outline"
           className="w-full"
           onClick={() => startOAuth("google")}
-          disabled={isPending}
+          disabled={isPending || !hasSupabaseEnv}
         >
           <GoogleGlyph />
           {pendingProvider === "google" ? "Connecting..." : "Google"}
@@ -64,7 +85,7 @@ export function OAuthButtons() {
           variant="outline"
           className="w-full"
           onClick={() => startOAuth("github")}
-          disabled={isPending}
+          disabled={isPending || !hasSupabaseEnv}
         >
           <GithubGlyph />
           {pendingProvider === "github" ? "Connecting..." : "GitHub"}

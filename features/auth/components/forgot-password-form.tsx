@@ -7,8 +7,10 @@ import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { forgotPasswordAction } from "@/features/auth/actions";
 import { type ForgotPasswordFormValues, forgotPasswordSchema } from "@/features/auth/schemas";
+import { hasSupabaseEnv } from "@/lib/env";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { sendResetPassword } from "@/services/auth.service";
 
 export function ForgotPasswordForm() {
   const [message, setMessage] = useState<string | null>(null);
@@ -26,15 +28,28 @@ export function ForgotPasswordForm() {
     setMessage(null);
     setServerError(null);
 
+    if (!hasSupabaseEnv) {
+      setServerError(
+        "Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your environment.",
+      );
+      return;
+    }
+
     startTransition(async () => {
-      const result = await forgotPasswordAction(values);
+      try {
+        const supabase = createSupabaseBrowserClient();
+        const baseUrl = window.location.origin;
+        const result = await sendResetPassword(supabase, values.email, `${baseUrl}/auth/callback?next=/login`);
 
-      if (!result.success) {
-        setServerError(result.message);
-        return;
+        if (!result.success) {
+          setServerError(result.error ?? result.message);
+          return;
+        }
+
+        setMessage(result.message);
+      } catch {
+        setServerError("Unable to send reset link. Please try again.");
       }
-
-      setMessage(result.message);
     });
   };
 
@@ -51,7 +66,7 @@ export function ForgotPasswordForm() {
       {serverError ? <p className="text-sm text-destructive">{serverError}</p> : null}
       {message ? <p className="text-sm text-emerald-500">{message}</p> : null}
 
-      <Button type="submit" className="w-full" disabled={isPending}>
+      <Button type="submit" className="w-full" disabled={isPending || !hasSupabaseEnv}>
         {isPending ? "Sending reset link..." : "Send reset link"}
       </Button>
     </form>

@@ -8,9 +8,11 @@ import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { signupWithEmailAction } from "@/features/auth/actions";
 import { type SignupFormValues, signupSchema } from "@/features/auth/schemas";
 import { OAuthButtons } from "@/features/auth/components/oauth-buttons";
+import { hasSupabaseEnv } from "@/lib/env";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { signUpWithEmail } from "@/services/auth.service";
 
 export function SignupForm() {
   const router = useRouter();
@@ -31,16 +33,34 @@ export function SignupForm() {
     setServerError(null);
     setServerMessage(null);
 
+    if (!hasSupabaseEnv) {
+      setServerError(
+        "Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your environment.",
+      );
+      return;
+    }
+
     startTransition(async () => {
-      const result = await signupWithEmailAction(values);
+      try {
+        const supabase = createSupabaseBrowserClient();
+        const baseUrl = window.location.origin;
+        const result = await signUpWithEmail(
+          supabase,
+          values.email,
+          values.password,
+          `${baseUrl}/auth/callback?next=/dashboard`,
+        );
 
-      if (!result.success) {
-        setServerError(result.message);
-        return;
+        if (!result.success) {
+          setServerError(result.error ?? result.message);
+          return;
+        }
+
+        setServerMessage(result.message);
+        router.refresh();
+      } catch {
+        setServerError("Unable to complete sign up. Please try again.");
       }
-
-      setServerMessage(result.message);
-      router.refresh();
     });
   };
 
@@ -83,7 +103,7 @@ export function SignupForm() {
         {serverError ? <p className="text-sm text-destructive">{serverError}</p> : null}
         {serverMessage ? <p className="text-sm text-emerald-500">{serverMessage}</p> : null}
 
-        <Button type="submit" className="w-full" disabled={isPending}>
+        <Button type="submit" className="w-full" disabled={isPending || !hasSupabaseEnv}>
           {isPending ? "Creating account..." : "Create account"}
         </Button>
       </form>
